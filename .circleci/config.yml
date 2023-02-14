@@ -4,14 +4,16 @@ commands:
   destroy-environment:
     description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
     parameters:
-      # Add parameter here   
+      when_to_run:
+        type: string
+        default: "on_fail"   
     steps:
       - run:
           name: Destroy environments
           when: on_fail
           command: |
-            # Your code here
-            exit 1
+            aws delete-stack --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}"
+            aws delete-stack --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}"
 
   revert-migrations:
     description: Revert the last migration if successfully run in the current workflow.
@@ -124,6 +126,29 @@ jobs:
           cd backend
           npm install
           npm audit fix --audit-level=critical --force
+
+  deploy-infrastructure:
+   docker:
+    - image: amazon/aws-cli
+   steps:
+    - checkout
+    - run:
+       name: Ensure backend infrastructure exist
+       command: |
+        aws cloudformation deploy \
+        --template-file .circleci/files/backend.yml \
+        --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
+        --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  \
+        --tags project=udapeople
+    - run:
+       name: Ensure forntend infrastructure exist
+       command: |
+        aws cloudformation deploy \
+        --template-file .circleci/files/frontend.yml \
+        --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}" \
+        --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  \
+        --tags project=udapeople
+        
   
             
 
@@ -140,4 +165,4 @@ workflows:
           requires: [build-backend]
       - scan-frontend:
           requires: [build-frontend]
-      
+      - deploy-infrastructure 
